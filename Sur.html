@@ -14,7 +14,6 @@
         font-family: 'Segoe UI', sans-serif;
     }
 
-    /* Canvas del simulador */
     canvas {
         position: absolute;
         top: 0;
@@ -24,7 +23,6 @@
         z-index: 0;
     }
 
-    /* UI superior */
     .ui {
         position: absolute;
         top: 10px;
@@ -38,7 +36,6 @@
         z-index: 10;
     }
 
-    /* Instrucciones inferiores */
     .instrucciones {
         position: absolute;
         bottom: 20px;
@@ -83,11 +80,11 @@
 
 <div class="instrucciones">🔄 Gira el punto rojo en sentido ANTIHORARIO</div>
 
-<!-- BOTÓN VOLVER (todavía no funcional) -->
-<button id="volverBtn" onclick="alert('Volver aún no implementado');">Volver</button>
+<!-- BOTÓN VOLVER -->
+<button id="volverBtn" onclick="window.location.href='index.html';">Volver</button>
 
 <script>
-// --- Código del simulador (igual que Norte) ---
+// --- Código del simulador ---
 const canvas = document.getElementById('simulador');
 const ctx = canvas.getContext('2d');
 canvas.width = 1000;
@@ -254,6 +251,3 @@ draw();
 
 </body>
 </html>
-
-
-
