@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>Simulador Astronómico Táctil</title>
+<title>Simulador Hemisferio Norte</title>
 <style>
     html, body {
         margin: 0;
@@ -12,6 +12,8 @@
         background: #050505;
         font-family: 'Segoe UI', sans-serif;
     }
+
+    /* Canvas del simulador */
     canvas {
         position: absolute;
         top: 0;
@@ -21,6 +23,7 @@
         z-index: 0;
     }
 
+    /* UI superior */
     .ui {
         position: absolute;
         top: 10px;
@@ -33,6 +36,8 @@
         font-size: 12px;
         z-index: 10;
     }
+
+    /* Instrucciones inferiores */
     .instrucciones {
         position: absolute;
         bottom: 20px;
@@ -50,7 +55,7 @@
         position: absolute;
         top: 10px;
         right: 10px;
-        z-index: 20;
+        z-index: 30;
         background: #ffeb3b;
         color: #000;
         border: none;
@@ -67,28 +72,24 @@
 </style>
 </head>
 <body>
-    <canvas id="simulador"></canvas>
 
-    <div class="ui">
-        <h3 style="margin:0 0 5px 0; color:#ffeb3b; font-size: 14px;">Simulador Sol-Luna</h3>
-        <small style="color:#aaa">Arrastra la Tierra o usa el dedo.<br>La luz solar viene desde arriba.</small>
-    </div>
-    <div class="instrucciones">🔄 Gira el punto rojo en sentido ANTIHORARIO</div>
+<canvas id="simulador"></canvas>
 
- <div class="container volver">
-  <button onclick="window.location.href='/index.html'">Volver</button>
+<div class="ui">
+    <h3 style="margin:0 0 5px 0; color:#ffeb3b; font-size: 14px;">Simulador Sol-Luna</h3>
+    <small style="color:#aaa">Arrastra la Tierra o usa el dedo.<br>La luz solar viene desde arriba.</small>
 </div>
 
+<div class="instrucciones">🔄 Gira el punto rojo en sentido ANTIHORARIO</div>
+
+<!-- BOTÓN VOLVER -->
+<button id="volverBtn" onclick="window.location.href='/index.html'">Volver</button>
 
 <script>
-function volver() {
-    window.location.href = 'Fases de la Luna.html';
-}
-
 // --- Código del simulador ---
 const canvas = document.getElementById('simulador');
 const ctx = canvas.getContext('2d');
-canvas.width = 1000; 
+canvas.width = 1000;
 canvas.height = 600;
 
 let timeAngle = -Math.PI / 2; 
@@ -150,7 +151,7 @@ function drawDetailedMoon(ctx, radius, skyAlpha, isMenu = false) {
     ctx.beginPath(); ctx.arc(0, 0, radius, 0, Math.PI * 2); ctx.fill();
     ctx.fillStyle = 'rgba(0,0,0,0.12)';
     [[-0.3, -0.3, 0.2], [0.4, -0.2, 0.15], [0.1, 0.4, 0.25], [-0.5, 0.2, 0.1]].forEach(c => {
-        ctx.beginPath(); ctx.arc(c[0]*radius, c[1]*radius, c[2]*radius, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(c[0]*radius, c[1]*radius, c[2]*radius, 0, Math.PI*2); ctx.fill();
     });
     ctx.fillStyle = `rgb(${15 + 100 * skyAlpha},${20 + 140 * skyAlpha},${40 + 200 * skyAlpha})`;
     let shadowAmt;
