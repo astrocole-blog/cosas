@@ -13,7 +13,6 @@
         font-family: 'Segoe UI', sans-serif;
     }
 
-    /* Canvas del simulador */
     canvas {
         position: absolute;
         top: 0;
@@ -23,7 +22,6 @@
         z-index: 0;
     }
 
-    /* UI superior */
     .ui {
         position: absolute;
         top: 10px;
@@ -37,7 +35,6 @@
         z-index: 10;
     }
 
-    /* Instrucciones inferiores */
     .instrucciones {
         position: absolute;
         bottom: 20px;
@@ -83,7 +80,7 @@
 <div class="instrucciones">🔄 Gira el punto rojo en sentido ANTIHORARIO</div>
 
 <!-- BOTÓN VOLVER -->
-<button id="volverBtn" onclick="window.location.href='/index.html'">Volver</button>
+<button id="volverBtn" onclick="window.location.href='index.html';">Volver</button>
 
 <script>
 // --- Código del simulador ---
@@ -108,9 +105,9 @@ for (let i = 0; i < 150; i++) {
 
 const phases = [
     { name: "Nueva", angle: -90, shadow: 0 },
-    { name: "Cuarto Menguante", angle: 0, shadow: 1 }, 
+    { name: "Cuarto Creciente", angle: 0, shadow: -1 }, 
     { name: "Llena", angle: 90, shadow: 0 },
-    { name: "Cuarto Creciente", angle: 180, shadow: -1 } 
+    { name: "Cuarto Menguante", angle: 180, shadow: 1 } 
 ];
 
 // --- Funciones de arrastre ---
@@ -159,9 +156,9 @@ function drawDetailedMoon(ctx, radius, skyAlpha, isMenu = false) {
         ctx.beginPath();
         if (phaseIdx === 0) { ctx.arc(0,0,radius+0.5,0,Math.PI*2);}
         else if (phaseIdx === 2) { }
-        else { shadowAmt = (phaseIdx===1)?1:-1; ctx.arc(0,0,radius+0.5,0,Math.PI);}
+        else { shadowAmt = (phaseIdx===1)?-1:1; ctx.arc(0,0,radius+0.5,0,Math.PI);}
     } else {
-        const phaseToShadow = [1,0,-1,0];
+        const phaseToShadow = [-1,1,0,0];
         shadowAmt = phaseToShadow[phaseIdx];
         ctx.arc(0,0,radius+0.5,Math.PI/2,-Math.PI/2);
         ctx.ellipse(0,0,Math.abs(shadowAmt)*radius,radius+0.5,0,-Math.PI/2,Math.PI/2,shadowAmt<0);
@@ -250,5 +247,7 @@ function draw() {
 }
 draw();
 </script>
+
 </body>
 </html>
+
