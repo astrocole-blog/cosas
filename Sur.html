@@ -2,149 +2,84 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Simulador Astronómico Táctil - Hemisferio Sur</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulador Sur</title>
     <style>
-        html, body {
-            margin: 0;
-            padding: 0;
-            height: 100%;
-            width: 100%;
-            overflow: hidden;
-            background: #050505;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            touch-action: none;
-        }
-        canvas {
-            display: block;
-            width: 100vw;
-            height: 100vh;
-            z-index: 0;
-        }
-
-        .ui {
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            pointer-events: none;
-            background: rgba(0,0,0,0.8);
-            padding: 12px;
-            border-radius: 8px;
-            border-left: 4px solid #ffeb3b;
-            z-index: 10;
-        }
-        
-        .instrucciones {
-            position: absolute;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            color: #ffeb3b;
-            font-weight: bold;
-            font-size: 14px;
-            background: rgba(0,0,0,0.6);
-            padding: 8px 15px;
-            border-radius: 20px;
-            z-index: 10;
-            text-align: center;
-            white-space: nowrap;
-        }
-
-        /* Botón Volver (Mismo estilo que el Norte) */
-        #volverBtn {
-            position: absolute;
-            top: 15px;
-            right: 15px;
-            z-index: 100;
-            background: #ffeb3b;
-            color: #000;
-            border: none;
-            padding: 12px 24px;
-            border-radius: 30px;
-            font-weight: bold;
-            font-size: 16px;
-            cursor: pointer;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-            transition: all 0.2s ease;
-        }
-        #volverBtn:hover {
-            transform: scale(1.1);
-            background: #fff176;
-        }
+        body { margin: 0; background: #000; color: white; font-family: sans-serif; overflow: hidden; }
+        canvas { display: block; width: 100vw; height: 100vh; }
+        .ui { position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.8); padding: 10px; border-radius: 8px; border-left: 4px solid #ffeb3b; z-index: 10; pointer-events: none; }
+        #volverBtn { position: absolute; top: 10px; right: 10px; z-index: 100; background: #ffeb3b; color: #000; border: none; padding: 12px 20px; border-radius: 20px; font-weight: bold; cursor: pointer; }
+        .inst { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); color: #ffeb3b; background: rgba(0,0,0,0.5); padding: 5px 15px; border-radius: 20px; }
     </style>
 </head>
 <body>
+    <div class="ui">
+        <b style="color:#ffeb3b">Simulador Sol-Luna (SUR)</b><br>
+        <small>Usa el dedo o ratón para girar la Tierra.</small>
+    </div>
+    <div class="inst">🔄 Sentido HORARIO</div>
+    <button id="volverBtn" onclick="window.location.href='./'">← VOLVER</button>
     <canvas id="simulador"></canvas>
 
-    <div class="ui">
-        <h3 style="margin:0 0 5px 0; color:#ffeb3b; font-size: 16px;">Simulador Sol-Luna (SUR)</h3>
-        <small style="color:#aaa; font-size: 12px;">Arrastra la Tierra o usa el dedo.<br>La luz solar viene desde arriba.</small>
-    </div>
-
-    <div class="instrucciones">🔄 Gira el punto rojo en sentido HORARIO</div>
-
-    <button id="volverBtn" onclick="volver()">← VOLVER</button>
-
 <script>
-// --- Navegación ---
-function volver() {
-    // IMPORTANTE: Asegúrate de que el archivo principal se llame exactamente así
-    window.location.href = 'index.html';
-}
-
-// --- Configuración Canvas ---
 const canvas = document.getElementById('simulador');
 const ctx = canvas.getContext('2d');
+let w, h, isDragging = false, timeAngle = -Math.PI/2, phaseIdx = 0;
 
 function resize() {
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
+    w = canvas.width = window.innerWidth;
+    h = canvas.height = window.innerHeight;
 }
 window.addEventListener('resize', resize);
 resize();
 
-// --- Variables Simulador ---
-let timeAngle = -Math.PI / 2; 
-let phaseIdx = 0; 
-let isDragging = false;
-
-const stars = [];
-for (let i = 0; i < 150; i++) {
-    stars.push({
-        x: Math.random(), 
-        y: Math.random(),
-        size: Math.random() * 1.5,
-        blink: Math.random()
-    });
-}
-
-// Fases específicas para el Sur (Creciente/Menguante invertidas visualmente)
 const phases = [
     { name: "Nueva", angle: -90 },
-    { name: "Cuarto Creciente", angle: 0 }, 
+    { name: "Creciente", angle: 0 },
     { name: "Llena", angle: 90 },
-    { name: "Cuarto Menguante", angle: 180 } 
+    { name: "Menguante", angle: 180 }
 ];
 
-// --- Controles ---
-function getPos(e) {
+// Controles
+function start() { isDragging = true; }
+function end() { isDragging = false; }
+function move(e) {
+    if(!isDragging) return;
     const rect = canvas.getBoundingClientRect();
-    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-    return { x: clientX - rect.left, y: clientY - rect.top };
-}
-
-function start(e) {
-    const pos = getPos(e);
-    if (pos.x < 300 && pos.y > canvas.height * 0.6) {
-        const sectionH = (canvas.height * 0.35) / 4;
-        const idx = Math.floor((pos.y - canvas.height * 0.6) / sectionH);
-        if (idx >= 0 && idx < 4) phaseIdx = idx;
+    const x = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
+    const y = (e.touches ? e.touches[0].clientY : e.clientY) - rect.top;
+    if (x < w/3 && y > h*0.6) {
+        phaseIdx = Math.floor((y - h*0.6) / ((h*0.35)/4)) % 4;
     } else {
-        isDragging = true;
+        timeAngle = Math.atan2(y - 200, x - (w/6));
     }
 }
 
-function move(e) {
-    if (isDragging) {
-        const pos = getPos(e);
+canvas.addEventListener('mousedown', start);
+window.addEventListener('mousemove', move);
+window.addEventListener('mouseup', end);
+canvas.addEventListener('touchstart', start);
+canvas.addEventListener('touchmove', (e) => { move(e); e.preventDefault(); }, {passive: false});
+canvas.addEventListener('touchend', end);
+
+function drawMoon(ctx, r, sky) {
+    ctx.fillStyle = '#eee'; ctx.beginPath(); ctx.arc(0,0,r,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle = `rgb(${15+100*sky},${20+140*sky},${40+200*sky})`;
+    const s = [1,0,-1,0][phaseIdx];
+    ctx.beginPath(); ctx.arc(0,0,r+1,Math.PI/2,-Math.PI/2);
+    ctx.ellipse(0,0,Math.abs(s)*r,r+1,0,-Math.PI/2,Math.PI/2, s<0); ctx.fill();
+}
+
+function render() {
+    ctx.clearRect(0,0,w,h);
+    const wl = Math.max(w/3, 250), wr = w - wl;
+    
+    // Espacio
+    ctx.fillStyle = '#080810'; ctx.fillRect(0,0,wl,h);
+    ctx.save(); ctx.translate(wl/2, 200);
+    ctx.fillStyle = '#ffeb3b'; ctx.beginPath(); ctx.arc(0,-150,15,0,Math.PI*2); ctx.fill(); // Sol
+    ctx.fillStyle = '#1976d2'; ctx.beginPath(); ctx.arc(0,0,40,0,Math.PI*2); ctx.fill(); // Tierra
+    ctx.rotate(timeAngle); ctx.fillStyle='#f44336'; ctx.beginPath(); ctx.arc(40,0,6,0,Math.PI*2); ctx.fill();
+    ctx.restore();
+
+    // Cielo
