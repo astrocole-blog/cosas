@@ -1,12 +1,11 @@
 {
-  "name": "Sistema Solar a Escala – Valencia",
-  "short_name": "Sistema Solar",
-  "description": "Sistema Solar a escala real sobre el mapa de Valencia",
+  "name": "Sistema Solar a Escala",
+  "short_name": "Solar",
+  "description": "Explora el Sistema Solar a escala desde Valencia con esta app educativa interactiva.",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#000000",
   "theme_color": "#FFD600",
-  "orientation": "portrait",
   "icons": [
     {
       "src": "icon-192.png",
