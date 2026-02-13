@@ -1,0 +1,22 @@
+{
+  "name": "Sistema Solar a Escala – Valencia",
+  "short_name": "Sistema Solar",
+  "description": "Sistema Solar a escala real sobre el mapa de Valencia",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#FFD600",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

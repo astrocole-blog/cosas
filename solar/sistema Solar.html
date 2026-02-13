@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Sistema Solar a Escala – Valencia</title>
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+<style>
+body { margin:0; font-family:'Segoe UI', sans-serif; }
+#map { height:100vh; background:#000; }
+
+#controls {
+    position:absolute;
+    top:10px; left:10px;
+    z-index:1000;
+    width:280px;
+    padding:15px;
+    background:rgba(255,255,255,0.95);
+    border-radius:12px;
+    box-shadow:0 4px 15px rgba(0,0,0,0.5);
+    max-height:85vh;
+    overflow-y:auto;
+}
+
+button {
+    width:100%;
+    padding:10px;
+    margin-top:8px;
+    font-weight:bold;
+    border:none;
+    border-radius:4px;
+    color:white;
+    cursor:pointer;
+}
+
+.btn-blue { background:#2196F3; }
+.btn-capture { background:#E91E63; }
+
+.input-row {
+    display:flex;
+    gap:6px;
+    margin-top:4px;
+}
+
+.input-row input {
+    flex:1;
+    padding:5px;
+}
+
+.input-row select {
+    width:70px;
+    padding:5px;
+}
+
+.legend-item {
+    display:flex;
+    align-items:center;
+    font-size:13px;
+    margin-bottom:4px;
+}
+
+.color-box {
+    width:14px;
+    height:14px;
+    margin-right:8px;
+    border-radius:3px;
+    border:1px solid #444;
+}
+
+.orbit-label {
+    background:rgba(255,255,255,0.95);
+    border:1px solid #000;
+    padding:3px 6px;
+    font-size:12px;
+    font-weight:bold;
+    white-space:nowrap;
+    border-radius:4px;
+}
+
+hr {
+    border:0;
+    border-top:1px solid #ddd;
+    margin:10px 0;
+}
+</style>
+</head>
+
+<body>
+
+<div id="controls">
+<strong>Sistema Solar a Escala</strong><br>
+
+<label style="font-size:12px;">Diámetro del Sol</label>
+<div class="input-row">
+    <input type="number" id="sunSize" value="10" step="0.1">
+    <select id="sunUnit">
+        <option value="cm">cm</option>
+        <option value="m">m</option>
+    </select>
+</div>
+
+<button class="btn-blue" id="btnMapa">Satélite / Mapa</button>
+<button class="btn-capture" id="btnCaptura">📸 Generar Imagen JPG</button>
+
+<hr>
+<div id="info"></div>
+</div>
+
+<div id="map"></div>
+
+<script>
+// --------- REFERENCIAS DOM (CLAVE) ----------
+const sunSizeInput = document.getElementById("sunSize");
+const sunUnitSelect = document.getElementById("sunUnit");
+const infoDiv = document.getElementById("info");
+const btnMapa = document.getElementById("btnMapa");
+const btnCaptura = document.getElementById("btnCaptura");
+
+// --------- CONSTANTES FÍSICAS ----------
+const SOL_DIAMETRO_KM = 1392700;
+const UA_KM = 149597870.7;
+
+// --------- DATOS ORBITALES ----------
+const datosOrbitas = [
+ { n:"Mercurio", d:0.387, c:"#878787" },
+ { n:"Venus", d:0.723, c:"#E3BB76" },
+ { n:"Tierra", d:1.000, c:"#2271B3" },
+ { n:"Marte", d:1.524, c:"#E27B58" },
+ { n:"Júpiter", d:5.203, c:"#D39C7E" },
+ { n:"Saturno", d:9.537, c:"#C5AB6E" },
+ { n:"Urano", d:19.191, c:"#00CED1" },
+ { n:"Neptuno", d:30.069, c:"#1A237E" },
+ { n:"Plutón", d:39.482, c:"#7B1FA2" },
+ { n:"Cinturón de Kuiper", d:50.0, c:"#4db6ac" }
+];
+
+// --------- MAPA ----------
+const valenciaCoords = [39.4697, -0.3763];
+let posicionSol = L.latLng(valenciaCoords);
+
+const capaCalles = L.tileLayer(
+ 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+ { maxZoom:20 }
+);
+
+const capaSatelite = L.tileLayer(
+ 'https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}',
+ { maxZoom:20 }
+);
+
+const map = L.map('map', {
+    center: valenciaCoords,
+    zoom: 17,
+    layers: [capaCalles],
+    preferCanvas: true
+});
+
+map.zoomControl.setPosition('topright');
+
+let capasOrbitas = L.layerGroup().addTo(map);
+
+// --------- FUNCIONES ----------
+function toggleMapa() {
+    if (map.hasLayer(capaCalles)) {
+        map.removeLayer(capaCalles);
+        map.addLayer(capaSatelite);
+    } else {
+        map.removeLayer(capaSatelite);
+        map.addLayer(capaCalles);
+    }
+}
+
+function dibujarSistema() {
+    capasOrbitas.clearLayers();
+
+    const size = parseFloat(sunSizeInput.value);
+    if (isNaN(size)) return;
+
+    const diametroSol_m =
+        sunUnitSelect.value === "cm" ? size / 100 : size;
+
+    const escala = diametroSol_m / SOL_DIAMETRO_KM;
+    const metrosPorUA = UA_KM * escala;
+
+    const radioSol = diametroSol_m >= 1 ? diametroSol_m / 2 : 2;
+
+    L.circle(posicionSol, {
+        radius: radioSol,
+        color:'#FFD600',
+        fillColor:'#FFFF00',
+        fillOpacity:0.85,
+        weight:3
+    }).addTo(capasOrbitas);
+
+    let html = "<strong>Radios orbitales:</strong><br>";
+
+    datosOrbitas.forEach(o => {
+        const r = o.d * metrosPorUA;
+
+        L.circle(posicionSol, {
+            radius:r,
+            color:o.c,
+            weight:3,
+            fill:false
+        }).addTo(capasOrbitas);
+L.marker(
+    [posicionSol.lat + (r + 4) / 111320, posicionSol.lng],
+    {
+        icon: L.divIcon({
+            className: 'orbit-label',
+            html: o.n,
+            iconSize: null,
+            iconAnchor: [0, 0]
+        })
+    }
+).addTo(capasOrbitas);
+
+        html += `
+        <div class="legend-item">
+            <div class="color-box" style="background:${o.c}"></div>
+            ${o.n}: ${r.toLocaleString('de-DE',{maximumFractionDigits:1})} m
+        </div>`;
+    });
+
+    infoDiv.innerHTML = html;
+}
+
+// --------- EVENTOS ----------
+map.on('click', e => {
+    posicionSol = e.latlng;
+    dibujarSistema();
+});
+
+sunSizeInput.addEventListener("input", dibujarSistema);
+sunUnitSelect.addEventListener("change", dibujarSistema);
+btnMapa.addEventListener("click", toggleMapa);
+
+btnCaptura.addEventListener("click", () => {
+    html2canvas(document.body,{scale:2,useCORS:true}).then(c=>{
+        const a=document.createElement("a");
+        a.download="sistema-solar.jpg";
+        a.href=c.toDataURL("image/jpeg",0.9);
+        a.click();
+    });
+});
+
+// --------- INICIO ----------
+dibujarSistema();
+</script>
+
+</body>
+</html>
+
