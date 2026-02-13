@@ -1,25 +1,13 @@
 {
-  "name": "Sistema Solar a Escala – Valencia",
-  "short_name": "Solar",
-  "description": "Explora el Sistema Solar a escala desde Valencia con esta app educativa interactiva.",
-  "start_url": "./index.html",
+  "background_color": "#ffffff",
+  "dir": "ltr",
   "display": "standalone",
-  "background_color": "#000000",
-  "theme_color": "#FFD600",
-  "orientation": "portrait",
-  "scope": "./",
-  "icons": [
-    {
-      "src": "icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any maskable"
-    }
-  ]
+  "name": "com.javi.astrocole.solar",
+  "orientation": "any",
+  "scope": "/",
+  "short_name": "sissolar",
+  "start_url": "/",
+  "theme_color": "#ffffff",
+  "id": "com.javi.astrocole.solar",
+  "description": "nada"
 }
