@@ -1,0 +1,806 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Simulador de Fases Lunares</title>
+<style>
+    html, body {
+        margin: 0;
+        padding: 0;
+        height: 100%;
+        overflow: hidden;
+        font-family: 'Segoe UI', sans-serif;
+        background: #000010;
+        color: white;
+        -webkit-user-select: none;
+        -moz-user-select: none;
+        -ms-user-select: none;
+        user-select: none;
+    }
+
+    /* Estilos para la página principal */
+    #pagina-principal {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        position: relative;
+    }
+
+    #pagina-principal canvas {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 0;
+    }
+
+    #pagina-principal .container {
+        position: relative;
+        z-index: 1;
+        text-align: center;
+        background: rgba(0,0,0,0.6);
+        padding: 40px 60px;
+        border-radius: 16px;
+        box-shadow: 0 0 40px rgba(0,0,0,0.7);
+    }
+
+    #pagina-principal h1 {
+        margin-bottom: 30px;
+        color: #ffeb3b;
+        font-size: 28px;
+    }
+
+    #pagina-principal button {
+        background: #1976d2;
+        color: white;
+        border: none;
+        padding: 16px 36px;
+        margin: 12px;
+        border-radius: 10px;
+        font-size: 18px;
+        cursor: pointer;
+        transition: all 0.3s;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+    }
+
+    #pagina-principal button:hover {
+        background: #0d47a1;
+        transform: translateY(-3px);
+        box-shadow: 0 6px 20px rgba(0,0,0,0.5);
+    }
+
+    /* Estilos para los simuladores */
+    .simulador {
+        width: 100%;
+        height: 100%;
+        position: relative;
+        display: none;
+    }
+
+    .simulador canvas {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 0;
+    }
+
+    .simulador .ui {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        pointer-events: none;
+        background: rgba(0,0,0,0.8);
+        padding: 10px;
+        border-radius: 8px;
+        border-left: 4px solid #ffeb3b;
+        font-size: 12px;
+        z-index: 10;
+    }
+
+    .simulador .instrucciones {
+        position: absolute;
+        bottom: 20px;
+        left: 15px;
+        color: #ffeb3b;
+        font-weight: bold;
+        font-size: 14px;
+        background: rgba(0,0,0,0.6);
+        padding: 5px;
+        z-index: 10;
+    }
+
+    .simulador #volverBtn {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        z-index: 20;
+        background: #ffeb3b;
+        color: #000;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 8px;
+        font-weight: bold;
+        cursor: pointer;
+        transition: transform 0.2s, background 0.2s;
+    }
+
+    .simulador #volverBtn:hover {
+        transform: scale(1.05);
+        background: #ffd600;
+    }
+
+    /* Clase para mostrar/ocultar secciones */
+    .visible {
+        display: block !important;
+    }
+</style>
+</head>
+<body>
+
+<!-- Página Principal -->
+<div id="pagina-principal">
+    <canvas id="stars"></canvas>
+    <div class="container">
+        <h1>Selecciona tu hemisferio</h1>
+        <button onclick="mostrarSimulador('norte')">Hemisferio Norte</button>
+        <button onclick="mostrarSimulador('sur')">Hemisferio Sur</button>
+    </div>
+</div>
+
+<!-- Simulador Hemisferio Norte -->
+<div id="simulador-norte" class="simulador">
+    <canvas id="simuladorNorte"></canvas>
+    <div class="ui">
+        <h3 style="margin:0 0 5px 0; color:#ffeb3b; font-size: 14px;">Simulador Sol-Luna</h3>
+        <small style="color:#aaa">Arrastra la Tierra o usa el dedo.<br>La luz solar viene desde arriba.</small>
+    </div>
+    <div class="instrucciones">🔄 Gira el punto rojo en sentido ANTIHORARIO</div>
+    <button id="volverBtn" onclick="mostrarPrincipal()">← Volver</button>
+</div>
+
+<!-- Simulador Hemisferio Sur -->
+<div id="simulador-sur" class="simulador">
+    <canvas id="simuladorSur"></canvas>
+    <div class="ui">
+        <h3 style="margin:0 0 5px 0; color:#ffeb3b; font-size: 14px;">Simulador Sol-Luna (Sur)</h3>
+        <small style="color:#aaa">Arrastra la Tierra o usa el dedo.<br>La luz solar viene desde arriba.</small>
+    </div>
+    <div class="instrucciones">🔄 Gira el punto rojo en sentido ANTIHORARIO</div>
+    <button id="volverBtn" onclick="mostrarPrincipal()">← Volver</button>
+</div>
+
+<script>
+// --- BLOQUEO DE CLIC DERECHO Y ATAJOS DE TECLADO ---
+document.addEventListener('contextmenu', function(e) {
+    e.preventDefault();
+    return false;
+});
+
+document.addEventListener('keydown', function(e) {
+    // Bloquear F12, Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+Shift+C, Ctrl+U, Ctrl+S
+    if (e.key === 'F12' || 
+        (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'J' || e.key === 'C')) ||
+        (e.ctrlKey && (e.key === 'u' || e.key === 'U' || e.key === 's' || e.key === 'S')) ||
+        (e.key === 'PrintScreen') ||
+        (e.ctrlKey && e.shiftKey && e.key === 'I') ||
+        (e.metaKey && e.altKey && e.key === 'I')) {
+        e.preventDefault();
+        return false;
+    }
+    
+    // Bloquear Ctrl+A (seleccionar todo)
+    if (e.ctrlKey && (e.key === 'a' || e.key === 'A')) {
+        e.preventDefault();
+        return false;
+    }
+    
+    // Bloquear Ctrl+C (copiar)
+    if (e.ctrlKey && (e.key === 'c' || e.key === 'C')) {
+        e.preventDefault();
+        return false;
+    }
+    
+    // Bloquear Ctrl+V (pegar)
+    if (e.ctrlKey && (e.key === 'v' || e.key === 'V')) {
+        e.preventDefault();
+        return false;
+    }
+    
+    // Bloquear Ctrl+X (cortar)
+    if (e.ctrlKey && (e.key === 'x' || e.key === 'X')) {
+        e.preventDefault();
+        return false;
+    }
+    
+    // Bloquear Ctrl+P (imprimir)
+    if (e.ctrlKey && (e.key === 'p' || e.key === 'P')) {
+        e.preventDefault();
+        return false;
+    }
+});
+
+// Bloquear selección de texto
+document.addEventListener('selectstart', function(e) {
+    e.preventDefault();
+    return false;
+});
+
+// Bloquear arrastrar imágenes/elementos
+document.addEventListener('dragstart', function(e) {
+    e.preventDefault();
+    return false;
+});
+
+// --- FUNCIONES DE NAVEGACIÓN ---
+function mostrarPrincipal() {
+    document.getElementById('pagina-principal').style.display = 'flex';
+    document.getElementById('simulador-norte').classList.remove('visible');
+    document.getElementById('simulador-sur').classList.remove('visible');
+}
+
+function mostrarSimulador(hemisferio) {
+    document.getElementById('pagina-principal').style.display = 'none';
+    if (hemisferio === 'norte') {
+        document.getElementById('simulador-norte').classList.add('visible');
+        // Reiniciar animación del simulador norte si es necesario
+        if (typeof iniciarSimuladorNorte === 'function') iniciarSimuladorNorte();
+    } else {
+        document.getElementById('simulador-sur').classList.add('visible');
+        // Reiniciar animación del simulador sur si es necesario
+        if (typeof iniciarSimuladorSur === 'function') iniciarSimuladorSur();
+    }
+}
+
+// --- CÓDIGO DE LA PÁGINA PRINCIPAL (Fases_Luna.html) ---
+(function() {
+    const canvas = document.getElementById('stars');
+    if (!canvas) return;
+    
+    const ctx = canvas.getContext('2d');
+    let stars = [];
+    
+    function resizeCanvas() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+    }
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+    
+    function initStars(count = 200) {
+        stars = [];
+        for(let i=0;i<count;i++){
+            stars.push({
+                x: Math.random()*canvas.width,
+                y: Math.random()*canvas.height,
+                r: Math.random()*1.5 + 0.5,
+                alpha: Math.random(),
+                delta: Math.random()*0.02 + 0.005
+            });
+        }
+    }
+    initStars();
+    
+    function drawStars() {
+        ctx.clearRect(0,0,canvas.width,canvas.height);
+        for(let s of stars){
+            s.alpha += s.delta;
+            if(s.alpha > 1) { s.alpha = 1; s.delta *= -1; }
+            if(s.alpha < 0) { s.alpha = 0; s.delta *= -1; }
+            ctx.beginPath();
+            ctx.arc(s.x, s.y, s.r, 0, Math.PI*2);
+            ctx.fillStyle = `rgba(255,255,255,${s.alpha})`;
+            ctx.fill();
+        }
+        requestAnimationFrame(drawStars);
+    }
+    drawStars();
+})();
+
+// --- CÓDIGO DEL SIMULADOR NORTE (Norte.html) ---
+(function() {
+    let canvas, ctx;
+    let timeAngle, phaseIdx, isDragging;
+    let stars = [];
+    let animFrame;
+    
+    const phases = [
+        { name: "Nueva", angle: -82, shadow: 0 },
+        { name: "Cuarto Menguante", angle: 0, shadow: 1 }, 
+        { name: "Llena", angle: 90, shadow: 0 },
+        { name: "Cuarto Creciente", angle: 180, shadow: -1 } 
+    ];
+    
+    function initSimuladorNorte() {
+        canvas = document.getElementById('simuladorNorte');
+        if (!canvas) return;
+        
+        ctx = canvas.getContext('2d');
+        canvas.width = 1000; 
+        canvas.height = 600;
+        
+        timeAngle = -Math.PI / 2; 
+        phaseIdx = 0; 
+        isDragging = false;
+        
+        stars = [];
+        for (let i = 0; i < 150; i++) {
+            stars.push({
+                x: Math.random() * (canvas.width * 0.66), 
+                y: Math.random() * 420,
+                size: Math.random() * 1.5,
+                blink: Math.random()
+            });
+        }
+        
+        // Eliminar event listeners anteriores
+        canvas.removeEventListener('mousedown', start);
+        window.removeEventListener('mousemove', move);
+        window.removeEventListener('mouseup', end);
+        canvas.removeEventListener('touchstart', touchStart);
+        canvas.removeEventListener('touchmove', touchMove);
+        canvas.removeEventListener('touchend', end);
+        
+        // Agregar event listeners
+        canvas.addEventListener('mousedown', start);
+        window.addEventListener('mousemove', move);
+        window.addEventListener('mouseup', end);
+        canvas.addEventListener('touchstart', touchStart, {passive: false});
+        canvas.addEventListener('touchmove', touchMove, {passive: false});
+        canvas.addEventListener('touchend', end);
+        
+        // Iniciar animación
+        if (animFrame) cancelAnimationFrame(animFrame);
+        drawNorte();
+    }
+    
+    function getPos(e) {
+        const rect = canvas.getBoundingClientRect();
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        const scaleX = canvas.width / rect.width;
+        const scaleY = canvas.height / rect.height;
+        return { x: (clientX - rect.left) * scaleX, y: (clientY - rect.top) * scaleY };
+    }
+    
+    function start(e) {
+        const pos = getPos(e);
+        if (pos.x < 333 && pos.y > 350) {
+            const idx = Math.floor((pos.y - 360) / 55);
+            if (idx >= 0 && idx < 4) phaseIdx = idx;
+        } else if (pos.x < 333) { isDragging = true; }
+    }
+    
+    function move(e) {
+        if (isDragging) {
+            if (e.cancelable) e.preventDefault();
+            const pos = getPos(e);
+            timeAngle = Math.atan2(pos.y - 200, pos.x - 166);
+        }
+    }
+    
+    function touchStart(e) {
+        start(e); 
+        e.preventDefault();
+    }
+    
+    function touchMove(e) {
+        move(e);
+        e.preventDefault();
+    }
+    
+    function end() { isDragging = false; }
+    
+    function drawDetailedMoon(ctx, radius, skyAlpha, isMenu = false) {
+        ctx.fillStyle = '#e0e0e0';
+        ctx.beginPath(); ctx.arc(0, 0, radius, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = 'rgba(0,0,0,0.12)';
+        [[-0.3, -0.3, 0.2], [0.4, -0.2, 0.15], [0.1, 0.4, 0.25], [-0.5, 0.2, 0.1]].forEach(c => {
+            ctx.beginPath(); ctx.arc(c[0]*radius, c[1]*radius, c[2]*radius, 0, Math.PI * 2); ctx.fill();
+        });
+        ctx.fillStyle = `rgb(${15 + 100 * skyAlpha},${20 + 140 * skyAlpha},${40 + 200 * skyAlpha})`;
+        let shadowAmt;
+        if (isMenu) {
+            ctx.beginPath();
+            if (phaseIdx === 0) { ctx.arc(0,0,radius+0.5,0,Math.PI*2);}
+            else if (phaseIdx === 2) { }
+            else { shadowAmt = (phaseIdx===1)?1:-1; ctx.arc(0,0,radius+0.5,0,Math.PI);}
+        } else {
+            const phaseToShadow = [1,0,-1,0];
+            shadowAmt = phaseToShadow[phaseIdx];
+            ctx.beginPath();
+            ctx.arc(0,0,radius+0.5,Math.PI/2,-Math.PI/2);
+            ctx.ellipse(0,0,Math.abs(shadowAmt)*radius,radius+0.5,0,-Math.PI/2,Math.PI/2,shadowAmt<0);
+        }
+        ctx.fill();
+    }
+    
+    function drawNorte() {
+        if (!ctx || !canvas) return;
+        
+        ctx.clearRect(0,0,canvas.width,canvas.height);
+        const w3 = canvas.width/3;
+    
+        // PANEL IZQUIERDO: Espacio
+        ctx.fillStyle = '#080810'; ctx.fillRect(0,0,w3,canvas.height);
+        ctx.save();
+        ctx.translate(w3/2,200);
+        ctx.fillStyle='#ffeb3b'; ctx.beginPath(); ctx.arc(0,-170,15,0,Math.PI*2); ctx.fill();
+        ctx.fillStyle='#1976d2'; ctx.beginPath(); ctx.arc(0,0,40,0,Math.PI*2); ctx.fill();
+        ctx.fillStyle='rgba(0,0,0,0.6)'; ctx.beginPath(); ctx.arc(0,0,40,0,Math.PI); ctx.fill();
+    
+        // Flecha curva roja
+        ctx.strokeStyle = 'rgba(244, 67, 54, 0.8)'; 
+        ctx.lineWidth = 2.5;
+        ctx.beginPath(); ctx.arc(0, 0, 75, -2.1, -1.0); ctx.stroke();
+        ctx.save();
+        ctx.rotate(-2.1); 
+        ctx.fillStyle = 'rgba(244, 67, 54, 1)';
+        ctx.beginPath(); ctx.moveTo(75, -8); ctx.lineTo(82, 3); ctx.lineTo(68, 3); ctx.closePath(); ctx.fill();
+        ctx.restore();
+    
+        const moonSpaceAngle = phases[phaseIdx].angle*(Math.PI/180);
+        const mx=Math.cos(moonSpaceAngle)*115;
+        const my=Math.sin(moonSpaceAngle)*115;
+        ctx.lineWidth = 1;
+        ctx.strokeStyle='#333'; ctx.beginPath(); ctx.arc(0,0,115,0,Math.PI*2); ctx.stroke();
+    
+        ctx.save(); ctx.translate(mx,my); drawDetailedMoon(ctx,10,0,true); ctx.restore();
+    
+        ctx.rotate(timeAngle);
+        ctx.fillStyle='#f44336'; ctx.beginPath(); ctx.arc(40,0,5,0,Math.PI*2); ctx.fill();
+        ctx.strokeStyle='white'; ctx.beginPath(); ctx.moveTo(40,0); ctx.lineTo(60,0); ctx.stroke();
+        ctx.restore();
+    
+        phases.forEach((p,i)=>{
+            const by=360+i*55;
+            ctx.fillStyle=(phaseIdx===i)?'#2e7d32':'#222';
+            ctx.fillRect(15,by,300,45);
+            ctx.fillStyle='white'; ctx.font='16px Segoe UI'; ctx.textAlign='center';
+            ctx.fillText(p.name,165,by+28);
+        });
+    
+        // PANEL DERECHO: Cielo con Paisaje
+        ctx.save();
+        ctx.translate(w3,0);
+        const pw=canvas.width-w3;
+        const obsDeg=(timeAngle*180/Math.PI+360)%360;
+        
+        // Lógica Norte: Salida por el Este (izquierda)
+        let sunSkyPos=(-90-obsDeg+450)%360;
+        let skyAlpha=(sunSkyPos>0 && sunSkyPos<180)?Math.sin(sunSkyPos*Math.PI/180):0;
+        
+        ctx.fillStyle=`rgb(${15+100*skyAlpha},${20+140*skyAlpha},${40+200*skyAlpha})`;
+        ctx.fillRect(0,0,pw,canvas.height);
+    
+        if(skyAlpha<0.5){
+            ctx.save(); ctx.globalAlpha=1-(skyAlpha*2);
+            stars.forEach(s=>{
+                ctx.fillStyle=`rgba(255,255,255,${0.3+Math.abs(Math.sin(Date.now()*0.001+s.blink*10))*0.7})`;
+                ctx.beginPath(); ctx.arc(s.x,s.y,s.size,0,Math.PI*2); ctx.fill();
+            });
+            ctx.restore();
+        }
+    
+        let sX=(sunSkyPos/180)*pw, sY=420-Math.sin(sunSkyPos*Math.PI/180)*350;
+        if(sunSkyPos>0 && sunSkyPos<180){
+            ctx.shadowBlur=40; ctx.shadowColor="yellow";
+            ctx.fillStyle='#fff9c4'; ctx.beginPath(); ctx.arc(sX,sY,30,0,Math.PI*2); ctx.fill();
+            ctx.shadowBlur=0;
+        }
+    
+        let moonSkyPos=(phases[phaseIdx].angle-obsDeg+450)%360;
+        if(moonSkyPos>0 && moonSkyPos<180){
+            const mX=(moonSkyPos/180)*pw, mY=420-Math.sin(moonSkyPos*Math.PI/180)*350;
+            ctx.save(); ctx.translate(mX,mY);
+            ctx.rotate(Math.atan2(sY-mY,sX-mX)); drawDetailedMoon(ctx,25,skyAlpha,false);
+            ctx.restore();
+        }
+    
+        // PAISAJE
+        ctx.fillStyle = '#051007'; ctx.beginPath(); ctx.moveTo(0, 420);
+        ctx.quadraticCurveTo(pw*0.2, 330, pw*0.4, 420); ctx.quadraticCurveTo(pw*0.7, 310, pw, 420);
+        ctx.lineTo(pw, 600); ctx.lineTo(0, 600); ctx.fill();
+    
+        ctx.fillStyle = '#0a1d0d'; ctx.beginPath(); ctx.moveTo(0, 420); ctx.lineTo(0, 380);
+        ctx.quadraticCurveTo(pw*0.3, 290, pw*0.6, 420); ctx.quadraticCurveTo(pw*0.8, 340, pw, 390);
+        ctx.lineTo(pw, 600); ctx.lineTo(0, 600); ctx.fill();
+    
+        // Casa
+        ctx.save();
+        ctx.translate(pw * 0.25, 415);
+        ctx.fillStyle = '#071509';
+        ctx.fillRect(-25, -25, 50, 40);
+        ctx.beginPath(); ctx.moveTo(-32, -25); ctx.lineTo(0, -55); ctx.lineTo(32, -25); ctx.fill();
+        ctx.restore();
+    
+        // Árboles
+        const drawTree = (x, y, scale) => {
+            ctx.save(); ctx.translate(x, y); ctx.fillStyle = '#071509';
+            ctx.fillRect(-4 * scale, -10, 8 * scale, 30);
+            for(let i=0; i<3; i++) {
+                ctx.beginPath(); ctx.moveTo(-22*scale, -12*i*scale); ctx.lineTo(0, -35*scale -12*i*scale); ctx.lineTo(22*scale, -12*i*scale); ctx.fill();
+            }
+            ctx.restore();
+        };
+        drawTree(pw * 0.70, 415, 1.3);
+        drawTree(pw * 0.82, 418, 0.9);
+        drawTree(pw * 0.60, 422, 0.7);
+        drawTree(pw * 0.10, 420, 1.1);
+        drawTree(pw * 0.93, 415, 0.85);
+    
+        // Etiquetas de Horizonte
+        ctx.fillStyle = "rgba(255, 255, 255, 0.5)"; ctx.font = "bold 14px Segoe UI"; 
+        ctx.textAlign = "left"; ctx.fillText("ESTE", 20, 445);
+        ctx.textAlign = "right"; ctx.fillText("OESTE", pw - 20, 445);
+        ctx.restore();
+    
+        animFrame = requestAnimationFrame(drawNorte);
+    }
+    
+    // Exponer función para iniciar el simulador
+    window.iniciarSimuladorNorte = initSimuladorNorte;
+    
+    // Iniciar automáticamente cuando se muestre
+    if (document.getElementById('simuladorNorte')) {
+        // No iniciar hasta que se muestre
+    }
+})();
+
+// --- CÓDIGO DEL SIMULADOR SUR (Sur.html) ---
+(function() {
+    let canvas, ctx;
+    let timeAngle, phaseIdx, isDragging;
+    let stars = [];
+    let animFrame;
+    
+    const phases = [
+        { name: "Nueva", angle: -82, shadow: 0 },
+        { name: "Cuarto Menguante", angle: 0, shadow: 1 }, 
+        { name: "Llena", angle: 90, shadow: 0 },
+        { name: "Cuarto Creciente", angle: 180, shadow: -1 } 
+    ];
+    
+    function initSimuladorSur() {
+        canvas = document.getElementById('simuladorSur');
+        if (!canvas) return;
+        
+        ctx = canvas.getContext('2d');
+        canvas.width = 1000; 
+        canvas.height = 600;
+        
+        timeAngle = -Math.PI / 2; 
+        phaseIdx = 0; 
+        isDragging = false;
+        
+        stars = [];
+        for (let i = 0; i < 150; i++) {
+            stars.push({
+                x: Math.random() * (canvas.width * 0.66), 
+                y: Math.random() * 420,
+                size: Math.random() * 1.5,
+                blink: Math.random()
+            });
+        }
+        
+        // Eliminar event listeners anteriores
+        canvas.removeEventListener('mousedown', start);
+        window.removeEventListener('mousemove', move);
+        window.removeEventListener('mouseup', end);
+        canvas.removeEventListener('touchstart', touchStart);
+        canvas.removeEventListener('touchmove', touchMove);
+        canvas.removeEventListener('touchend', end);
+        
+        // Agregar event listeners
+        canvas.addEventListener('mousedown', start);
+        window.addEventListener('mousemove', move);
+        window.addEventListener('mouseup', end);
+        canvas.addEventListener('touchstart', touchStart, {passive: false});
+        canvas.addEventListener('touchmove', touchMove, {passive: false});
+        canvas.addEventListener('touchend', end);
+        
+        // Iniciar animación
+        if (animFrame) cancelAnimationFrame(animFrame);
+        drawSur();
+    }
+    
+    function getPos(e) {
+        const rect = canvas.getBoundingClientRect();
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        const scaleX = canvas.width / rect.width;
+        const scaleY = canvas.height / rect.height;
+        return { x: (clientX - rect.left) * scaleX, y: (clientY - rect.top) * scaleY };
+    }
+    
+    function start(e) {
+        const pos = getPos(e);
+        if (pos.x < 333 && pos.y > 350) {
+            const idx = Math.floor((pos.y - 360) / 55);
+            if (idx >= 0 && idx < 4) phaseIdx = idx;
+        } else if (pos.x < 333) { isDragging = true; }
+    }
+    
+    function move(e) {
+        if (isDragging) {
+            if (e.cancelable) e.preventDefault();
+            const pos = getPos(e);
+            timeAngle = Math.atan2(pos.y - 200, pos.x - 166);
+        }
+    }
+    
+    function touchStart(e) {
+        start(e); 
+        e.preventDefault();
+    }
+    
+    function touchMove(e) {
+        move(e);
+        e.preventDefault();
+    }
+    
+    function end() { isDragging = false; }
+    
+    function drawDetailedMoon(ctx, radius, skyAlpha, isMenu = false) {
+        ctx.fillStyle = '#e0e0e0';
+        ctx.beginPath(); ctx.arc(0, 0, radius, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = 'rgba(0,0,0,0.12)';
+        [[-0.3, -0.3, 0.2], [0.4, -0.2, 0.15], [0.1, 0.4, 0.25], [-0.5, 0.2, 0.1]].forEach(c => {
+            ctx.beginPath(); ctx.arc(c[0]*radius, c[1]*radius, c[2]*radius, 0, Math.PI * 2); ctx.fill();
+        });
+        ctx.fillStyle = `rgb(${15 + 100 * skyAlpha},${20 + 140 * skyAlpha},${40 + 200 * skyAlpha})`;
+        let shadowAmt;
+        if (isMenu) {
+            ctx.beginPath();
+            if (phaseIdx === 0) { ctx.arc(0,0,radius+0.5,0,Math.PI*2);}
+            else if (phaseIdx === 2) { }
+            else { shadowAmt = (phaseIdx===1)?1:-1; ctx.arc(0,0,radius+0.5,0,Math.PI);}
+        } else {
+            const phaseToShadow = [1,0,-1,0];
+            shadowAmt = phaseToShadow[phaseIdx];
+            ctx.beginPath();
+            ctx.arc(0,0,radius+0.5,Math.PI/2,-Math.PI/2);
+            ctx.ellipse(0,0,Math.abs(shadowAmt)*radius,radius+0.5,0,-Math.PI/2,Math.PI/2,shadowAmt<0);
+        }
+        ctx.fill();
+    }
+    
+    function drawSur() {
+        if (!ctx || !canvas) return;
+        
+        ctx.clearRect(0,0,canvas.width,canvas.height);
+        const w3 = canvas.width/3;
+    
+        // PANEL IZQUIERDO (Espacio)
+        ctx.fillStyle = '#080810'; ctx.fillRect(0,0,w3,canvas.height);
+        ctx.save();
+        ctx.translate(w3/2,200);
+        ctx.fillStyle='#ffeb3b'; ctx.beginPath(); ctx.arc(0,-170,15,0,Math.PI*2); ctx.fill();
+        ctx.fillStyle='#1976d2'; ctx.beginPath(); ctx.arc(0,0,40,0,Math.PI*2); ctx.fill();
+        ctx.fillStyle='rgba(0,0,0,0.6)'; ctx.beginPath(); ctx.arc(0,0,40,0,Math.PI); ctx.fill();
+    
+        // Flecha Roja Antihoraria
+        ctx.strokeStyle = 'rgba(244, 67, 54, 0.8)'; 
+        ctx.lineWidth = 2.5;
+        ctx.beginPath(); ctx.arc(0, 0, 75, -2.1, -1.0); ctx.stroke();
+        ctx.save();
+        ctx.rotate(-2.1); 
+        ctx.fillStyle = 'rgba(244, 67, 54, 1)';
+        ctx.beginPath(); ctx.moveTo(75, -8); ctx.lineTo(82, 3); ctx.lineTo(68, 3); ctx.closePath(); ctx.fill();
+        ctx.restore();
+    
+        const moonSpaceAngle = phases[phaseIdx].angle*(Math.PI/180);
+        const mx=Math.cos(moonSpaceAngle)*115;
+        const my=Math.sin(moonSpaceAngle)*115;
+        ctx.strokeStyle='#333'; ctx.beginPath(); ctx.arc(0,0,115,0,Math.PI*2); ctx.stroke();
+        ctx.save(); ctx.translate(mx,my); drawDetailedMoon(ctx,10,0,true); ctx.restore();
+    
+        ctx.rotate(timeAngle);
+        ctx.fillStyle='#f44336'; ctx.beginPath(); ctx.arc(40,0,5,0,Math.PI*2); ctx.fill();
+        ctx.strokeStyle='white'; ctx.beginPath(); ctx.moveTo(40,0); ctx.lineTo(60,0); ctx.stroke();
+        ctx.restore();
+    
+        phases.forEach((p,i)=>{
+            const by=360+i*55;
+            ctx.fillStyle=(phaseIdx===i)?'#2e7d32':'#222';
+            ctx.fillRect(15,by,300,45);
+            ctx.fillStyle='white'; ctx.font='16px Segoe UI'; ctx.textAlign='center'; ctx.fillText(p.name,165,by+28);
+        });
+    
+        // PANEL DERECHO (Cielo)
+        ctx.save();
+        ctx.translate(w3,0);
+        const pw=canvas.width-w3;
+        const obsDeg=(timeAngle*180/Math.PI+360)%360;
+        
+        // LOGICA HEMISFERIO SUR: Invertir posiciones
+        let sunSkyPos=(-90-obsDeg+450)%360;
+        sunSkyPos = 180 - sunSkyPos; 
+    
+        let skyAlpha=(sunSkyPos>0 && sunSkyPos<180)?Math.sin(sunSkyPos*Math.PI/180):0;
+        ctx.fillStyle=`rgb(${15+100*skyAlpha},${20+140*skyAlpha},${40+200*skyAlpha})`;
+        ctx.fillRect(0,0,pw,canvas.height);
+    
+        if(skyAlpha<0.5){
+            ctx.save(); ctx.globalAlpha=1-(skyAlpha*2);
+            stars.forEach(s=>{
+                ctx.fillStyle=`rgba(255,255,255,${0.3+Math.abs(Math.sin(Date.now()*0.001+s.blink*10))*0.7})`;
+                ctx.beginPath(); ctx.arc(s.x,s.y,s.size,0,Math.PI*2); ctx.fill();
+            });
+            ctx.restore();
+        }
+    
+        let sX=(sunSkyPos/180)*pw, sY=420-Math.sin(sunSkyPos*Math.PI/180)*350;
+        if(sunSkyPos>0 && sunSkyPos<180){
+            ctx.shadowBlur=40; ctx.shadowColor="yellow";
+            ctx.fillStyle='#fff9c4'; ctx.beginPath(); ctx.arc(sX,sY,30,0,Math.PI*2); ctx.fill();
+            ctx.shadowBlur=0;
+        }
+    
+        let moonSkyPos=(phases[phaseIdx].angle-obsDeg+450)%360;
+        moonSkyPos = 180 - moonSkyPos; 
+        
+        if(moonSkyPos>0 && moonSkyPos<180){
+            const mX=(moonSkyPos/180)*pw, mY=420-Math.sin(moonSkyPos*Math.PI/180)*350;
+            ctx.save(); ctx.translate(mX,mY);
+            ctx.rotate(Math.atan2(sY-mY,sX-mX)); drawDetailedMoon(ctx,25,skyAlpha,false);
+            ctx.restore();
+        }
+    
+        // PAISAJE
+        ctx.fillStyle = '#051007'; ctx.beginPath(); ctx.moveTo(0, 420);
+        ctx.quadraticCurveTo(pw*0.2, 330, pw*0.4, 420); ctx.quadraticCurveTo(pw*0.7, 310, pw, 420);
+        ctx.lineTo(pw, 600); ctx.lineTo(0, 600); ctx.fill();
+    
+        ctx.fillStyle = '#0a1d0d'; ctx.beginPath(); ctx.moveTo(0, 420); ctx.lineTo(0, 380);
+        ctx.quadraticCurveTo(pw*0.3, 290, pw*0.6, 420); ctx.quadraticCurveTo(pw*0.8, 340, pw, 390);
+        ctx.lineTo(pw, 600); ctx.lineTo(0, 600); ctx.fill();
+    
+        // CASA
+        ctx.save();
+        ctx.translate(pw * 0.25, 415);
+        ctx.fillStyle = '#071509';
+        ctx.fillRect(-25, -25, 50, 40);
+        ctx.beginPath(); ctx.moveTo(-32, -25); ctx.lineTo(0, -55); ctx.lineTo(32, -25); ctx.fill();
+        ctx.restore();
+    
+        // Árboles
+        const drawTree = (x, y, scale) => {
+            ctx.save(); ctx.translate(x, y); ctx.fillStyle = '#071509';
+            ctx.fillRect(-4 * scale, -10, 8 * scale, 30);
+            for(let i=0; i<3; i++) {
+                ctx.beginPath(); ctx.moveTo(-22*scale, -12*i*scale); ctx.lineTo(0, -35*scale -12*i*scale); ctx.lineTo(22*scale, -12*i*scale); ctx.fill();
+            }
+            ctx.restore();
+        };
+    
+        drawTree(pw * 0.70, 415, 1.3);
+        drawTree(pw * 0.82, 418, 0.9);
+        drawTree(pw * 0.60, 422, 0.7);
+        drawTree(pw * 0.10, 420, 1.1);
+        drawTree(pw * 0.93, 415, 0.85);
+    
+        ctx.fillStyle = "rgba(255, 255, 255, 0.5)"; ctx.font = "bold 14px Segoe UI"; 
+        ctx.textAlign = "left"; ctx.fillText("ESTE", 20, 445);
+        ctx.textAlign = "right"; ctx.fillText("OESTE", pw - 20, 445);
+        ctx.restore();
+    
+        animFrame = requestAnimationFrame(drawSur);
+    }
+    
+    // Exponer función para iniciar el simulador
+    window.iniciarSimuladorSur = initSimuladorSur;
+})();
+
+// Inicializar
+document.addEventListener('DOMContentLoaded', function() {
+    // Iniciar simuladores cuando se muestren
+    // (se inician manualmente al mostrar)
+});
+</script>
+</body>
+</html>
