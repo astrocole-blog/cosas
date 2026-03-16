@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>Sistema Solar a Escala – Valencia</title>
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+<style>
+/* Protección adicional: deshabilitar selección de texto en toda la página */
+* {
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none; /* Deshabilitar menú contextual en iOS */
+}
+
+body { 
+    margin:0; 
+    font-family:'Segoe UI', sans-serif; 
+    touch-action: none; 
+}
+#map { 
+    height:100vh; 
+    background:#000; 
+    z-index: 1; 
+}
+
+/* --- PANEL DE CONTROL OPTIMIZADO --- */
+#controls {
+    position:absolute;
+    top:10px; left:10px;
+    z-index:1000;
+    width:280px;
+    padding:15px;
+    background:rgba(255,255,255,0.95);
+    border-radius:12px;
+    box-shadow:0 4px 15px rgba(0,0,0,0.5);
+    max-height:85vh;
+    overflow-y:auto;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Estado Colapsado */
+#controls.collapsed {
+    width: 160px;
+    height: 40px;
+    overflow: hidden;
+    padding: 10px 15px;
+}
+
+.header-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+}
+
+#btnToggle {
+    background: #444;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 4px 12px;
+    cursor: pointer;
+    font-size: 18px;
+    font-weight: bold;
+    width: auto;
+    margin: 0;
+    touch-action: manipulation;
+}
+
+#controls.collapsed .content-to-hide {
+    display: none;
+}
+
+/* --- ESTILOS DE ELEMENTOS INTERNOS --- */
+button {
+    width:100%;
+    padding:12px;
+    margin-top:8px;
+    font-weight:bold;
+    border:none;
+    border-radius:6px;
+    color:white;
+    cursor:pointer;
+    touch-action: manipulation;
+}
+
+.btn-blue { background:#2196F3; }
+.btn-capture { background:#E91E63; }
+
+.input-row {
+    display:flex;
+    gap:6px;
+    margin-top:10px;
+}
+
+.input-row input, .input-row select {
+    padding:8px;
+    font-size: 16px;
+}
+
+.legend-item {
+    display:flex;
+    align-items:center;
+    font-size:13px;
+    margin-bottom:6px;
+}
+
+.color-box {
+    width:14px;
+    height:14px;
+    margin-right:8px;
+    border-radius:3px;
+    border:1px solid #444;
+}
+
+.orbit-label {
+    background:rgba(255,255,255,0.95);
+    border:1px solid #000;
+    padding:3px 6px;
+    font-size:12px;
+    font-weight:bold;
+    white-space:nowrap;
+    border-radius:4px;
+    pointer-events: none;
+}
+
+hr { border:0; border-top:1px solid #ddd; margin:15px 0; }
+</style>
+</head>
+
+<body>
+
+<div id="controls" data-html2canvas-ignore>
+    <div class="header-controls" id="dragHeader">
+        <strong onclick="toggleControls()">Sistema Solar</strong>
+        <button id="btnToggle" onclick="toggleControls()">−</button>
+    </div>
+
+    <div class="content-to-hide">
+        <label style="font-size:12px; display:block; margin-top:10px;">Diámetro del Sol</label>
+        <div class="input-row">
+            <input type="number" id="sunSize" value="10" step="0.1">
+            <select id="sunUnit">
+                <option value="cm">cm</option>
+                <option value="m">m</option>
+            </select>
+        </div>
+
+        <button class="btn-blue" id="btnMapa">Satélite / Mapa</button>
+        <button class="btn-capture" id="btnCaptura">📸 Generar Imagen JPG</button>
+
+        <hr>
+        <div id="info"></div>
+        <div id="ubicacionActual" style="font-size:12px; color:#666; margin-top:10px; text-align:center;">
+            Sol en: Valencia
+        </div>
+    </div>
+</div>
+
+<div id="map"></div>
+
+<script>
+// --------- PROTECCIÓN CONTRA CLICK DERECHO Y MENÚ CONTEXTUAL ----------
+
+// 1. Bloquear evento contextmenu en toda la página
+document.addEventListener('contextmenu', function(e) {
+    e.preventDefault();
+    return false;
+});
+
+// 2. Bloquear combinaciones de teclado comunes para desarrolladores
+document.addEventListener('keydown', function(e) {
+    // Bloquear F12
+    if (e.key === 'F12' || e.keyCode === 123) {
+        e.preventDefault();
+        return false;
+    }
+    
+    // Bloquear Ctrl+Shift+I (DevTools), Ctrl+Shift+J, Ctrl+Shift+C
+    if (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'J' || e.key === 'C' || e.keyCode === 73 || e.keyCode === 74 || e.keyCode === 67)) {
+        e.preventDefault();
+        return false;
+    }
+    
+    // Bloquear Ctrl+U (Ver código fuente)
+    if (e.ctrlKey && (e.key === 'U' || e.keyCode === 85)) {
+        e.preventDefault();
+        return false;
+    }
+    
+    // Bloquear Ctrl+S (Guardar página)
+    if (e.ctrlKey && (e.key === 'S' || e.keyCode === 83)) {
+        e.preventDefault();
+        return false;
+    }
+    
+    // Bloquear Ctrl+P (Imprimir)
+    if (e.ctrlKey && (e.key === 'P' || e.keyCode === 80)) {
+        e.preventDefault();
+        return false;
+    }
+    
+    // Bloquear Ctrl+Shift+Delete (borrar datos)
+    if (e.ctrlKey && e.shiftKey && (e.key === 'Delete' || e.keyCode === 46)) {
+        e.preventDefault();
+        return false;
+    }
+});
+
+// 3. Proteger el canvas del mapa (útil para evitar capturas fáciles)
+// No podemos prevenir completamente la captura de pantalla del sistema operativo,
+// pero podemos hacer más difícil la inspección
+
+// 4. Sobrescribir métodos comunes de consola para dificultar debugging (opcional)
+// Esto es más agresivo y puede afectar la experiencia de desarrollo
+if (typeof console !== 'undefined') {
+    // Descomentar las siguientes líneas si se quiere deshabilitar completamente la consola
+    // console.log = function() {};
+    // console.warn = function() {};
+    // console.error = function() {};
+    // console.info = function() {};
+}
+
+// 5. Detectar si las DevTools están abiertas (método simple)
+// Esto no es 100% fiable pero añade otra capa
+setInterval(function() {
+    const start = performance.now();
+    debugger; // Si DevTools están abiertas, esto ralentizará la ejecución
+    const end = performance.now();
+    if (end - start > 100) {
+        // Posiblemente DevTools abiertas, se podría tomar acción
+        // Por ejemplo, redirigir o mostrar un mensaje
+        console.warn('DevTools detectadas');
+    }
+}, 1000);
+
+// --------- REFERENCIAS DOM ----------
+const sunSizeInput = document.getElementById("sunSize");
+const sunUnitSelect = document.getElementById("sunUnit");
+const infoDiv = document.getElementById("info");
+const btnMapa = document.getElementById("btnMapa");
+const btnCaptura = document.getElementById("btnCaptura");
+const controlsWindow = document.getElementById("controls");
+const btnToggle = document.getElementById("btnToggle");
+const ubicacionDiv = document.getElementById("ubicacionActual");
+
+// Variable para almacenar el nombre de la ubicación actual
+let nombreUbicacionActual = "Valencia";
+
+// Evitar que el mapa reaccione al tocar el panel de control
+L.DomEvent.disableClickPropagation(controlsWindow);
+L.DomEvent.disableScrollPropagation(controlsWindow);
+
+function toggleControls() {
+    controlsWindow.classList.toggle('collapsed');
+    btnToggle.innerText = controlsWindow.classList.contains('collapsed') ? '+' : '−';
+}
+
+// --------- LÓGICA DEL SISTEMA SOLAR ----------
+const SOL_DIAMETRO_KM = 1392700;
+const UA_KM = 149597870.7;
+
+const datosOrbitas = [
+ { n:"Mercurio", d:0.387, c:"#878787" },
+ { n:"Venus", d:0.723, c:"#E3BB76" },
+ { n:"Tierra", d:1.000, c:"#2271B3" },
+ { n:"Marte", d:1.524, c:"#E27B58" },
+ { n:"Júpiter", d:5.203, c:"#D39C7E" },
+ { n:"Saturno", d:9.537, c:"#C5AB6E" },
+ { n:"Urano", d:19.191, c:"#00CED1" },
+ { n:"Neptuno", d:30.069, c:"#1A237E" },
+ { n:"Plutón", d:39.482, c:"#7B1FA2" },
+ { n:"Cinturón de Kuiper", d:50.0, c:"#4db6ac" }
+];
+
+const valenciaCoords = [39.4697, -0.3763];
+let posicionSol = L.latLng(valenciaCoords);
+
+const capaCalles = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom:20 });
+const capaSatelite = L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', { maxZoom:20 });
+
+const map = L.map('map', {
+    center: valenciaCoords,
+    zoom: 17,
+    layers: [capaCalles],
+    preferCanvas: true
+});
+
+map.zoomControl.setPosition('topright');
+let capasOrbitas = L.layerGroup().addTo(map);
+
+function toggleMapa() {
+    if (map.hasLayer(capaCalles)) {
+        map.removeLayer(capaCalles);
+        map.addLayer(capaSatelite);
+    } else {
+        map.removeLayer(capaSatelite);
+        map.addLayer(capaCalles);
+    }
+}
+
+// Función para obtener nombre de ubicación
+function obtenerNombreUbicacion(lat, lng) {
+    const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=10&addressdetails=1`;
+
+    fetch(url, {
+        headers: {
+            'User-Agent': 'SistemaSolarApp/1.0'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data && data.display_name) {
+            const address = data.address;
+            let ubicacion = address.city || address.town || address.village || address.hamlet || address.county || address.state || address.country;
+
+            if (!ubicacion && data.display_name) {
+                ubicacion = data.display_name.split(',')[0];
+            }
+
+            if (ubicacion) {
+                nombreUbicacionActual = ubicacion;
+                ubicacionDiv.innerText = `Sol en: ${ubicacion}`;
+            } else {
+                nombreUbicacionActual = `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+                ubicacionDiv.innerText = `Sol en: Coordenadas (${nombreUbicacionActual})`;
+            }
+        } else {
+            nombreUbicacionActual = `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+            ubicacionDiv.innerText = `Sol en: Coordenadas (${nombreUbicacionActual})`;
+        }
+    })
+    .catch(error => {
+        console.error('Error al obtener ubicación:', error);
+        nombreUbicacionActual = `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+        ubicacionDiv.innerText = `Sol en: Coordenadas (${nombreUbicacionActual})`;
+    });
+}
+
+function dibujarSistema() {
+    capasOrbitas.clearLayers();
+    const size = parseFloat(sunSizeInput.value);
+    if (isNaN(size)) return;
+
+    const diametroSol_m = sunUnitSelect.value === "cm" ? size / 100 : size;
+    const escala = diametroSol_m / SOL_DIAMETRO_KM;
+    const metrosPorUA = UA_KM * escala;
+    const radioSol = diametroSol_m >= 1 ? diametroSol_m / 2 : 2;
+
+    L.circle(posicionSol, {
+        radius: radioSol,
+        color:'#FFD600',
+        fillColor:'#FFFF00',
+        fillOpacity:0.85,
+        weight:3
+    }).addTo(capasOrbitas);
+
+    let html = "<strong>Radios orbitales:</strong><br>";
+
+    datosOrbitas.forEach(o => {
+        const r = o.d * metrosPorUA;
+        L.circle(posicionSol, {
+            radius:r,
+            color:o.c,
+            weight:3,
+            fill:false
+        }).addTo(capasOrbitas);
+        
+        L.marker([posicionSol.lat + (r + 4) / 111320, posicionSol.lng], {
+            icon: L.divIcon({
+                className: 'orbit-label',
+                html: o.n,
+                iconSize: null,
+                iconAnchor: [0, 0]
+            })
+        }).addTo(capasOrbitas);
+
+        html += `
+        <div class="legend-item">
+            <div class="color-box" style="background:${o.c}"></div>
+            ${o.n}: ${r.toLocaleString('de-DE',{maximumFractionDigits:1})} m
+        </div>`;
+    });
+    infoDiv.innerHTML = html;
+}
+
+// --------- EVENTOS ----------
+map.on('click', e => {
+    posicionSol = e.latlng;
+    dibujarSistema();
+    obtenerNombreUbicacion(posicionSol.lat, posicionSol.lng);
+});
+
+sunSizeInput.addEventListener("input", dibujarSistema);
+sunUnitSelect.addEventListener("change", dibujarSistema);
+btnMapa.addEventListener("click", toggleMapa);
+
+btnCaptura.addEventListener("click", () => {
+    html2canvas(document.body,{
+        scale: 2,
+        useCORS: true,
+        logging: false
+    }).then(c=>{
+        const a=document.createElement("a");
+        const nombreArchivo = `sistema-solar-${nombreUbicacionActual.replace(/\s+/g, '-').toLowerCase()}.jpg`;
+        a.download = nombreArchivo;
+        a.href=c.toDataURL("image/jpeg", 0.9);
+        a.click();
+    });
+});
+
+// Al cargar, obtener el nombre de la ubicación inicial
+obtenerNombreUbicacion(posicionSol.lat, posicionSol.lng);
+dibujarSistema();
+
+</script>
+
+</body>
+</html>
